@@ -1,0 +1,148 @@
+<div
+  id="gdprConsent"
+  style="
+    display: none;
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    background: #fff;
+    padding: 20px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    z-index: 99999;
+    max-width: 400px;
+  "
+>
+  <div style="margin-bottom: 15px">
+    <h3 style="margin: 0 0 10px">Согласие на обработку данных</h3>
+    <a
+      href="/privacy"
+      target="_blank"
+      style="color: #007bff; text-decoration: none"
+      >Политика конфиденциальности</a
+    >
+  </div>
+  <button
+    id="acceptBtn"
+    style="
+      padding: 10px 25px;
+      background: #28a745;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      margin-right: 10px;
+    "
+  >
+    Да
+  </button>
+  <button
+    id="denyBtn"
+    style="
+      padding: 10px 25px;
+      background: #dc3545;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    "
+  >
+    Нет
+  </button>
+</div>
+
+<script>
+  (function () {
+    // Обновленный объект конфигурации с URL сервера
+    const CONFIG = {
+      consentExpireDays: 30,
+      storageKey: "gdprConsent",
+      track: { forms: true, clicks: true, scroll: true },
+      serverUrl: "http://localhost:3000/save-data", // URL общедоступного сервера
+    };
+
+    function init() {
+      const consent = getConsent();
+      if (consent === "granted") startTracking();
+      else if (!consent) showBanner();
+    }
+
+    function showBanner() {
+      const banner = document.getElementById("gdprConsent");
+      banner.style.display = "block";
+
+      document.getElementById("acceptBtn").addEventListener("click", () => {
+        setConsent("granted");
+        banner.style.display = "none";
+        saveToServer(); // Мгновенное сохранение при согласии
+        startTracking(); // Запуск периодического сохранения
+      });
+
+      document.getElementById("denyBtn").addEventListener("click", () => {
+        setConsent("denied");
+        banner.style.display = "none";
+        clearData();
+      });
+    }
+
+    // Функция сбора данных остается без изменений
+    function collectData() {
+      return {
+        timestamp: new Date().toISOString(),
+        url: location.href,
+        referrer: document.referrer,
+        userAgent: navigator.userAgent,
+        screen: `${screen.width}x${screen.height}`,
+        formsData: getFormData(),
+        clicks: trackClicks(),
+        scrollDepth: trackScroll(),
+      };
+    }
+
+    // Новая функция для отправки данных на сервер
+    function saveToServer() {
+      const data = collectData();
+      fetch(CONFIG.serverUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            console.error("Не удалось сохранить данные на сервере");
+          }
+        })
+        .catch((error) => {
+          console.error("Ошибка при сохранении данных на сервере:", error);
+        });
+    }
+
+    function startTracking() {
+      setInterval(() => {
+        saveToServer(); // Повторное сохранение каждые 60 секунд
+      }, 60000);
+    }
+
+    // Остальные функции (заглушки, предполагается их реализация)
+    function getFormData() {
+      return {};
+    }
+    function trackClicks() {
+      return [];
+    }
+    function trackScroll() {
+      return 0;
+    }
+    function setConsent(status) {
+      localStorage.setItem(CONFIG.storageKey, status);
+      // Здесь можно добавить логику истечения срока согласия, если нужно
+    }
+    function getConsent() {
+      return localStorage.getItem(CONFIG.storageKey);
+    }
+    function clearData() {
+      // Реализация очистки данных, если требуется
+    }
+
+    document.addEventListener("DOMContentLoaded", init);
+  })();
+</script>
